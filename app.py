@@ -4,6 +4,7 @@ import pandas as pd
 import numpy as np
 import re
 import nltk
+import ssl
 from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize, sent_tokenize
 from nltk.stem import WordNetLemmatizer
@@ -11,7 +12,6 @@ from nltk import pos_tag
 from sklearn.feature_extraction.text import TfidfVectorizer, CountVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.decomposition import LatentDirichletAllocation
-from sklearn.cluster import KMeans
 import plotly.express as px
 from collections import Counter, defaultdict
 import matplotlib.pyplot as plt
@@ -20,27 +20,32 @@ import PyPDF2
 import io
 import random
 from datetime import datetime
-import tensorflow as tf
-from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import LSTM, Dense, Embedding, Dropout, Bidirectional
-from tensorflow.keras.preprocessing.text import Tokenizer
-from tensorflow.keras.preprocessing.sequence import pad_sequences
 
-# Download required NLTK data
+# Fix SSL certificate issues for NLTK downloads
 try:
-    nltk.data.find('tokenizers/punkt')
-    nltk.data.find('corpora/stopwords')
-    nltk.data.find('corpora/wordnet')
-    nltk.data.find('taggers/averaged_perceptron_tagger')
-except:
-    nltk.download('punkt')
-    nltk.download('stopwords')
-    nltk.download('wordnet')
-    nltk.download('averaged_perceptron_tagger')
+    _create_unverified_https_context = ssl._create_unverified_context
+except AttributeError:
+    pass
+else:
+    ssl._create_default_https_context = _create_unverified_https_context
+
+# Download all required NLTK data with error handling
+nltk_packages = ['punkt', 'stopwords', 'wordnet', 'averaged_perceptron_tagger', 'punkt_tab']
+for package in nltk_packages:
+    try:
+        if 'punkt' in package:
+            nltk.data.find(f'tokenizers/{package}')
+        elif package in ['stopwords', 'wordnet']:
+            nltk.data.find(f'corpora/{package}')
+        else:
+            nltk.data.find(f'taggers/{package}')
+    except LookupError:
+        print(f"Downloading NLTK {package}...")
+        nltk.download(package, quiet=True)
 
 # Set page config
 st.set_page_config(
-    page_title=" PaperIQ AI Powered Research Insight Analyzer",
+    page_title="PaperIQ AI Powered Research Insight Analyzer",
     page_icon="🔬",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -330,7 +335,7 @@ if 'qa_processor' not in st.session_state:
 if 'show_analysis' not in st.session_state:
     st.session_state.show_analysis = True
 
-# Enhanced Document Understanding System (same as before)
+# Enhanced Document Understanding System
 class IntelligentDocumentAnalyzer:
     def __init__(self):
         self.stop_words = set(stopwords.words('english'))
@@ -637,17 +642,13 @@ class IntelligentDocumentAnalyzer:
         else:
             return max(0.3, 1.0 - abs(avg_sentence_length - 20) / 20)
 
-# Intelligent Question Answering System (same as before)
+# Intelligent Question Answering System
 class IntelligentQASystem:
     def __init__(self):
         self.vectorizer = TfidfVectorizer(stop_words='english', max_features=10000, ngram_range=(1, 3))
         self.sentences = []
         self.sentence_embeddings = None
         self.document_analysis = None
-        self.tokenizer = None
-        self.model = None
-        self.vocab_size = 10000
-        self.max_length = 100
         
         # Enhanced question understanding patterns
         self.question_types = {
